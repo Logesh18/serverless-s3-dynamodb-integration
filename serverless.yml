@@ -1,0 +1,62 @@
+service: s3-data-processing-service
+
+frameworkVersion: '3'
+
+package:
+  individually: true
+  patterns:
+    - '!node_modules/**'
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  stage: dev
+  region: us-east-1
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:PutItem
+            - dynamodb:UpdateItem
+          Resource: !GetAtt S3ProcessTable.Arn
+        - Effect: Allow
+          Action:
+            - s3:CreateBucket
+            - s3:GetBucketAcl
+            - s3:PutBucketAcl
+            - s3:GetBucketPolicy
+            - s3:PutBucketPolicy
+            - s3:GetObject
+            - s3:PutObject
+            - s3:ListBucket
+            - s3:DeleteObject
+          Resource: !Sub arn:aws:s3:::${ProcessS3Bucket}
+        - Effect: Allow
+          Action:
+            - logs:CreateLogGroup
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            - s3:CreateBucket
+            - s3:ListAllMyBuckets
+            - s3:ListBucket
+            - s3:GetBucketLocation
+          Resource: '*'
+          
+resources: ${file(config/resources.yml)}
+
+functions: ${file(config/lambda.yml)}
+
+plugins:
+  - serverless-plugin-typescript
+  - serverless-prune-plugin
+  - serverless-plugin-common-excludes
+
+custom:
+  commonExcludes:
+    - README.md
+    - .gitignore
+    - .editorconfig
+    - .npmignore
+    - .git/**
+    - node_modules/**

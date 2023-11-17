@@ -1,0 +1,86 @@
+Resources:
+  ProcessS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: processs3bucket
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: false
+        IgnorePublicAcls: false
+        BlockPublicPolicy: false
+        RestrictPublicBuckets: false
+
+  ProcessS3BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ProcessS3Bucket
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal: "*"
+            Action:
+              - s3:GetBucketAcl
+              - s3:PutBucketAcl
+              - s3:GetBucketPolicy
+              - s3:PutBucketPolicy
+              - s3:GetObject
+              - s3:PutObject
+              - s3:ListBucket
+              - s3:DeleteObject
+            Resource: 
+              - Fn::Sub: arn:aws:s3:::${ProcessS3Bucket}/*
+              - Fn::Sub: arn:aws:s3:::${ProcessS3Bucket}
+
+  S3ProcessTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: S3ProcessTable
+      AttributeDefinitions:
+        - AttributeName: FileName
+          AttributeType: S
+      KeySchema:
+        - AttributeName: FileName
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  processS3BucketDetailsRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: processS3BucketDetailsRole
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: processS3BucketDetailsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                Resource:
+                  - !GetAtt S3ProcessTable.Arn  
+  
+  S3ExampleCloudWatchLogsPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: S3DetailsProcessCloudWatchLogsPolicy
+      Roles:
+        - !Ref processS3BucketDetailsRole
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - logs:CreateLogGroup
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource: '*'
